@@ -1,6 +1,5 @@
 import os
 import re
-import exifread  # delete after
 import piexif
 
 from tkinter import Label, Button, filedialog
@@ -9,45 +8,15 @@ from PIL import Image
 from pathlib import Path
 
 
-
-
-def get_exif_tag(file, key):
-
+def decode_bytes(bytelist):
+    """Decodes a list of UCS2 encoded bytes into a string"""
     result = ""
 
-    tags = piexif.load(file)
-    pprint(tags)
-
-    if key in tags.keys():
-        result = tags[key]
+    for decimal in bytelist:
+        if decimal != 0:
+            result += chr(decimal)
 
     return result
-
-
-def get_exif_comment(file):
-
-    key = "Image XPComment"
-    comment = ""
-
-    tag = get_exif_tag(file, key)
-
-    if hasattr(tag, "values"):
-        # Iterate all characters in the tag
-        for char_as_decimal in tag.values:
-
-            # Find only non-zero characters
-            if char_as_decimal != 0:
-                comment += chr(char_as_decimal)
-
-    return comment.strip()
-
-def parse_date(string):
-    pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{1,2})\s*,?\s* (\d+)"
-    result = re.search(pattern, string, re.IGNORECASE)
-
-    print(result)
-    return result
-
 
 def encode_string(string):
     """Returns a string encoded into 2-byte character codes"""
@@ -59,6 +28,18 @@ def encode_string(string):
     result.append(0)
 
     return result
+
+def parse_date(string):
+    """Parses date in a string, not sure what this should return yet"""
+    pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{1,2})\s*,?\s* (\d+)"
+    result = re.search(pattern, string, re.IGNORECASE)
+
+    print(result)
+    return result
+
+def parse_time(string):
+    pass
+
 
 
 im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
@@ -99,12 +80,12 @@ class Gui:
 
     def choose_file(self):
 
-        directory = filedialog.askdirectory(title="Pick a file")
-        self.directory = directory
+        self.directory = filedialog.askdirectory(title="Pick a file")
         print("Selected", self.directory)
 
     def update_images(self):
 
+        # **** TESTING PURPOSES **** - DELETE AFTER
         if self.directory is None:
             self.directory = "C:/Users/Maro/Desktop/test"
 
@@ -115,14 +96,20 @@ class Gui:
             im = Image.open(filepath)
             exif_dict = piexif.load(im.info["exif"])
 
-            # Update exif data
-            comment_field = get_exif_comment(f)
-            if comment_field != "":
-                print(parse_date(comment_field).group(0))
-
             title_field = file.split(".", 1)[0]
+            exif_dict["0th"][piexif.ImageIFD.ImageDescription] = title_field
 
+            comment_field = decode_bytes(exif_dict["0th"][piexif.ImageIFD.XPComment]).strip()
 
+            if comment_field:
+                date_string = parse_date(comment_field)
+                time_string = parse_time(comment_field)
+
+                datetime = date_string + " " + time_string
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = datetime
+
+            exif_bytes = piexif.dump(exif_dict)
+            im.save(filepath, "JPEG", exif=exif_bytes)
 
 class Date:
 
