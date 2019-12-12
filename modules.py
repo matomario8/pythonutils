@@ -1,9 +1,11 @@
 import os
 import re
-import exifread
+import exifread  # delete after
+import piexif
 
 from tkinter import Label, Button, filedialog
 from pprint import pprint
+from PIL import Image
 from pathlib import Path
 
 
@@ -13,7 +15,8 @@ def get_exif_tag(file, key):
 
     result = ""
 
-    tags = exifread.process_file(file)
+    tags = piexif.load(file)
+    pprint(tags)
 
     if key in tags.keys():
         result = tags[key]
@@ -42,7 +45,31 @@ def parse_date(string):
     pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{1,2})\s*,?\s* (\d+)"
     result = re.search(pattern, string, re.IGNORECASE)
 
+    print(result)
     return result
+
+
+def encode_string(string):
+    """Returns a string encoded into 2-byte character codes"""
+    result = []
+    for char in string:
+        result.append(ord(char))
+        result.append(0)
+    result.append(0)
+    result.append(0)
+
+    return result
+
+
+im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
+exif_dict = piexif.load(im.info["exif"])
+exif_dict["0th"][piexif.ImageIFD.XPTitle] = encode_string("fdsf")
+exif_dict["0th"][piexif.ImageIFD.ImageDescription] = b"fff"
+exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = b"2012:12:12 16:00:00"
+exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = b"2012:12:12 16:00:00"
+exif_bytes = piexif.dump(exif_dict)
+im.save("C:/Users/Maro/Desktop/test/unnamed.jpg", "JPEG", exif=exif_bytes)
+
 
 
 class Gui:
@@ -85,14 +112,16 @@ class Gui:
 
         for file in files:
             filepath = Path(self.directory) / file
-            with open(filepath, 'rb') as f:
+            im = Image.open(filepath)
+            exif_dict = piexif.load(im.info["exif"])
 
-                # Update exif data
-                comment_field = get_exif_comment(f)
-                if comment_field != "":
-                    print(parse_date(comment_field).group(0))
+            # Update exif data
+            comment_field = get_exif_comment(f)
+            if comment_field != "":
+                print(parse_date(comment_field).group(0))
 
-                title_field = file.split(".", 1)[0]
+            title_field = file.split(".", 1)[0]
+
 
 
 class Date:
