@@ -2,7 +2,7 @@ import os
 import re
 import piexif
 
-from tkinter import Label, Button, filedialog
+from tkinter import Label, Button, Checkbutton, IntVar, filedialog
 from pprint import pprint
 from PIL import Image
 from pathlib import Path
@@ -41,34 +41,28 @@ def parse_time(string):
     pass
 
 
-
-im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
-exif_dict = piexif.load(im.info["exif"])
-exif_dict["0th"][piexif.ImageIFD.XPTitle] = encode_string("fdsf")
-exif_dict["0th"][piexif.ImageIFD.ImageDescription] = b"fff"
-exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = b"2012:12:12 16:00:00"
-exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = b"2012:12:12 16:00:00"
-exif_bytes = piexif.dump(exif_dict)
-im.save("C:/Users/Maro/Desktop/test/unnamed.jpg", "JPEG", exif=exif_bytes)
-
-
-
 class Gui:
 
     def __init__(self, root):
 
+        # Other variables
         self.directory = None
 
+        # GUI variables
         self.root = root
-
         self.root.title("Mass Exif Editor")
+        self.root.geometry("300x150")
 
-        self.label = Label(self.root, text="Choose a folder and then hit submit")
+        self.label = Label(self.root, text="Choose a folder and then hit run")
         self.label.pack()
 
         self.choose_button = Button(self.root, text="Choose folder",
                                     command=self.choose_file)
         self.choose_button.pack()
+
+        self.ignore_dates = IntVar()
+        self.ignore_checkbox = Checkbutton(self.root, text="Ignore incomplete dates", variable=self.ignore_dates)
+        self.ignore_checkbox.pack()
 
         self.choose_button = Button(self.root, text="Run Tool",
                                     command=self.update_images)
