@@ -1,5 +1,5 @@
 
-from modules import *
+from app import *
 from unittest import TestCase
 
 
@@ -35,13 +35,16 @@ class TestApp(TestCase):
 
         # Test valid times
         string1 = "10:30 A.M., Thursday, November 7, 2019"
-        string2 = "10:30 PM, Thursday, November 7, 2019"
-        self.assertEqual(parse_time(string1), "10:30:00")
-        self.assertEqual(parse_time(string2), "22:30:00")
+        string2 = "1:30 PM, Thursday, November 7, 2019"
+        self.assertEqual(str(parse_time(string1)), "10:30:00")
+        self.assertEqual(str(parse_time(string2)), "13:30:00")
+
+        string3 = "thursday 9:01 am in november"
+        self.assertEqual(str(parse_time(string3)), "09:01:00")
 
         # Test empty time
-        string3 = ", Thursday, November 7, 2019"
-        self.assertEqual(parse_time(string3), "00:00:00")
+        string4 = ", Thursday, November 7, 2019"
+        self.assertEqual(str(parse_time(string4)), "00:00:00")
 
         # TODO: Extending parse_time() to include 24 hour clock format
 
