@@ -19,7 +19,7 @@ REGULAR_CONDENSED = re.compile("\\b(\d{1,2})/(\d{1,2})/(\d{4})\\b",
 MONTH_YEAR = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s*,?\s*(\\b\d{4}\\b)",
                         flags=re.IGNORECASE)
 
-YEAR = re.compile("\\b\d{4}\\b",
+YEAR = re.compile("\\b1[89][5-9][0-9]|20[0-9][0-9]\\b",
                   flags=re.IGNORECASE)
 
 
@@ -200,8 +200,7 @@ class Gui:
                     exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = datetime
 
             exif_bytes = piexif.dump(exif_dict)
-            im.save(filepath, "JPEG", exif=exif_bytes)
-
+            piexif.insert(exif_bytes, im.filename)
 
 
 class Time:
@@ -298,7 +297,6 @@ class Date:
             string += "01"
 
         return string
-
 
 if __name__ == "__main__":
 

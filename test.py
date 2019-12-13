@@ -27,10 +27,6 @@ class TestApp(TestCase):
         string4 = "10:30 A.M., Thursday"
         self.assertEqual(str(parse_date(string4)), "")
 
-
-
-
-
     def test_time_parsing(self):
 
         # Test valid times
