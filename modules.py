@@ -29,12 +29,21 @@ def encode_string(string):
 
     return result
 
+
 def parse_date(string):
     """Parses date in a string, not sure what this should return yet"""
     pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{1,2})\s*,?\s* (\d+)"
     result = re.search(pattern, string, re.IGNORECASE)
 
-    print(result)
+    date = Date()
+
+    if result is not None:
+
+        date.month = result.group(1)
+        date.day = result.group(2)
+        date.year = result.group(3)
+        return date
+
     return result
 
 def parse_time(string):
@@ -51,31 +60,24 @@ class Gui:
         # GUI variables
         self.root = root
         self.root.title("Mass Exif Editor")
-        self.root.geometry("300x150")
 
-        self.label = Label(self.root, text="Choose a folder and then hit run")
-        self.label.pack()
+        self.help_text = Label(self.root, text="Choose a folder and then hit run").grid(row=0)
 
-        self.choose_button = Button(self.root, text="Choose folder",
-                                    command=self.choose_file)
-        self.choose_button.pack()
+        self.folder_button = Button(self.root, text="Choose folder",
+                                    command=self.choose_file).grid(row=1, column=1, sticky="W")
 
         self.ignore_dates = IntVar()
-        self.ignore_checkbox = Checkbutton(self.root, text="Ignore incomplete dates", variable=self.ignore_dates)
-        self.ignore_checkbox.pack()
+        self.ignore_checkbox = Checkbutton(self.root, text="Ignore incomplete dates",
+                                           variable=self.ignore_dates).grid(row=2, column=1, sticky="W")
 
-        self.choose_button = Button(self.root, text="Run Tool",
-                                    command=self.update_images)
-        self.choose_button.pack()
+        self.run_button = Button(self.root, text="Run Tool",
+                                 command=self.update_images).grid(row=3, column=1, sticky="W")
 
         self.close_button = Button(self.root, text="Quit",
-                                   command=self.root.quit)
-        self.close_button.pack()
+                                   command=self.root.quit).grid(row=3, column=0, sticky="W")
 
     def choose_file(self):
-
         self.directory = filedialog.askdirectory(title="Pick a file")
-        print("Selected", self.directory)
 
     def update_images(self):
 
@@ -101,6 +103,7 @@ class Gui:
 
                 datetime = date_string + " " + time_string
                 exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = datetime
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = datetime
 
             exif_bytes = piexif.dump(exif_dict)
             im.save(filepath, "JPEG", exif=exif_bytes)
@@ -111,3 +114,10 @@ class Date:
         self.day = day
         self.month = month
         self.year = year
+
+"""
+im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
+exif_dict = piexif.load(im.info["exif"])
+print(exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal])
+print(exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized])
+"""

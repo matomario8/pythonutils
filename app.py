@@ -1,11 +1,6 @@
-import os
-import re
-import exifread
 
 from tkinter import Tk
-
-
-from modules import Date, Gui
+from modules import Gui
 
 
 if __name__ == "__main__":
