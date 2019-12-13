@@ -7,30 +7,15 @@ from pprint import pprint
 from PIL import Image
 from pathlib import Path
 
-MONTHS = {
-    "january": "01",
-    "february": "02",
-    "march": "03",
-    "april": "04",
-    "may": "05",
-    "june": "06",
-    "july": "07",
-    "august": "08",
-    "september": "09",
-    "october": "10",
-    "november": "11",
-    "december": "12"
-}
+REGULAR_DATE = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*,?\s*(\\b\d{4}\\b)",
+                          flags=re.IGNORECASE)
 
-REGULAR_DATE = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*,?\s*(\b\d{4}\b)",
-                          re.IGNORECASE)
+REGULAR_CONDENSED = re.compile("\\b(\d{1,2})/(\d{1,2})/(\d{4})\\b", flags=re.IGNORECASE)
 
-MONTH_YEAR = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\b\d{4}\b)",
-                        re.IGNORECASE)
+MONTH_YEAR = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s*,?\s*(\\b\d{4}\\b)",
+                        flags=re.IGNORECASE)
 
-YEAR = re.compile("\b\d{4}\b", re.IGNORECASE)
-
-REGULAR_CONDENSED = re.compile("\b(\d{1,2})/(\d{1,2})/(\d{4})\b", re.IGNORECASE)
+YEAR = re.compile("\\b\d{4}\\b", flags=re.IGNORECASE)
 
 
 def decode_bytes(bytelist):
@@ -56,44 +41,40 @@ def encode_string(string):
     return result
 
 
-def match_date(string):
+def parse_date(string):
     """Attempts to match a date pattern in a string, returns date object"""
 
     date = Date()
 
-    result = REGULAR_DATE.match(string)
+    result = REGULAR_DATE.search(string)
     if result:
         date.month = result.group(1)
         date.day = result.group(2)
         date.year = result.group(3)
         return date
 
-    result = MONTH_YEAR.match(string)
+    result = REGULAR_CONDENSED.search(string)
+    if result:
+        date.month = result.group(1)
+        date.day = result.group(2)
+        date.year = result.group(3)
+        return date
+
+    result = MONTH_YEAR.search(string)
     if result:
         date.month = result.group(1)
         date.day = "1"
         date.year = result.group(2)
         return date
 
-    result = YEAR.match(string)
+    result = YEAR.search(string)
     if result:
         date.month = "1"
         date.day = "1"
         date.year = result.group(0)
         return date
 
-    result = REGULAR_CONDENSED.match(string)
-    if result:
-        date.month = result.group(1)
-        date.day = result.group(2)
-        date.year = result.group(3)
-        return date
-
     return date
-
-
-def parse_date(string):
-    pass
 
 def parse_time(string):
     pass
@@ -159,6 +140,21 @@ class Gui:
 
 class Date:
 
+    MONTHS = {
+        "january": "01",
+        "february": "02",
+        "march": "03",
+        "april": "04",
+        "may": "05",
+        "june": "06",
+        "july": "07",
+        "august": "08",
+        "september": "09",
+        "october": "10",
+        "november": "11",
+        "december": "12"
+    }
+
     def __init__(self, day=None, month=None, year=None):
         self.day = day
         self.month = month
@@ -171,9 +167,13 @@ class Date:
 
         string = str(self.year) + ":"
 
-
         if self.month:
-            if len(self.month < 2):
+
+            # Convert any text month using the months dictionary
+            if not self.month.isnumeric():
+                self.month = self.MONTHS[self.month.lower().strip()]
+
+            if len(self.month) < 2:
                 string += "0"
             string += self.month
         else:
@@ -182,7 +182,7 @@ class Date:
         string += ":"
 
         if self.day:
-            if len(self.day < 2):
+            if len(self.day) < 2:
                 string += "0"
             string += self.day
         else:
@@ -190,7 +190,7 @@ class Date:
 
         return string
 
-print(match_date("january 2, 5555"))
+# print(parse_date("10:30 A.M., Thursday, May, 2019"))
 """
 im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
 exif_dict = piexif.load(im.info["exif"])
