@@ -7,6 +7,7 @@ from pprint import pprint
 from PIL import Image
 from pathlib import Path
 
+# TODO: Find a better place for these, maybe in the Date class
 REGULAR_DATE = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*,?\s*(\\b\d{4}\\b)",
                           flags=re.IGNORECASE)
 
@@ -16,6 +17,10 @@ MONTH_YEAR = re.compile("(january|february|march|april|may|june|july|august|sept
                         flags=re.IGNORECASE)
 
 YEAR = re.compile("\\b\d{4}\\b", flags=re.IGNORECASE)
+
+
+
+TIME = re.compile("\\b(\d{1,2})\\b:(\d{1,2})\s*(a\.?m\.?|p\.?m\.?)")
 
 
 def decode_bytes(bytelist):
@@ -42,7 +47,7 @@ def encode_string(string):
 
 
 def parse_date(string):
-    """Attempts to match a date pattern in a string, returns date object"""
+    """Attempts to match a date pattern in a string, returns Date object"""
 
     date = Date()
 
@@ -77,7 +82,25 @@ def parse_date(string):
     return date
 
 def parse_time(string):
-    pass
+    """Attempts to match a time pattern in a string, returns Time object"""
+    time = Time()
+
+    result = TIME.search(string)
+    print(result)
+    if result:
+        time.hour = result.group(1)
+        time.minute = result.group(2)
+        am = result.group(3).replace(".", "").strip()
+        if am == "am":
+            time.am = True
+        else:
+            time.am = False
+
+    return time
+
+
+
+
 
 
 class Gui:
@@ -138,6 +161,37 @@ class Gui:
             exif_bytes = piexif.dump(exif_dict)
             im.save(filepath, "JPEG", exif=exif_bytes)
 
+
+class Time:
+
+    def __init__(self, hour="00", minute="00", second="00", am=True):
+        self.hour = hour
+        self.minute = minute
+        self.second = second
+        self.am = am
+
+    def __str__(self):
+
+        string = ""
+
+        hour = int(self.hour)
+
+        if self.am is False:
+            if hour < 12:
+                string += str(hour + 12)
+            else:
+                string += self.hour
+        else:
+            if hour == 12:
+                string += "00"
+            else:
+                string += self.hour
+
+        string += ":" + self.minute + ":" + self.second
+
+        return string
+
+
 class Date:
 
     MONTHS = {
@@ -190,7 +244,8 @@ class Date:
 
         return string
 
-# print(parse_date("10:30 A.M., Thursday, May, 2019"))
+
+print(parse_time("10:30 A.M., Thursday, May, 2019"))
 """
 im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
 exif_dict = piexif.load(im.info["exif"])
