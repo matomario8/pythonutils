@@ -22,6 +22,17 @@ MONTHS = {
     "december": "12"
 }
 
+REGULAR_DATE = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*,?\s*(\b\d{4}\b)",
+                          re.IGNORECASE)
+
+MONTH_YEAR = re.compile("(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\b\d{4}\b)",
+                        re.IGNORECASE)
+
+YEAR = re.compile("\b\d{4}\b", re.IGNORECASE)
+
+REGULAR_CONDENSED = re.compile("\b(\d{1,2})/(\d{1,2})/(\d{4})\b", re.IGNORECASE)
+
+
 def decode_bytes(bytelist):
     """Decodes a list of UCS2 encoded bytes into a string"""
     result = ""
@@ -31,6 +42,7 @@ def decode_bytes(bytelist):
             result += chr(decimal)
 
     return result
+
 
 def encode_string(string):
     """Returns a string encoded into 2-byte character codes"""
@@ -44,39 +56,44 @@ def encode_string(string):
     return result
 
 
-
-def parse_date(string):
-    """Parse date, create a date object, return a normalized version"""
+def match_date(string):
+    """Attempts to match a date pattern in a string, returns date object"""
 
     date = Date()
 
-    pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{1,2})\s*,?\s*(\d{4})"
-    result = re.search(pattern, string, re.IGNORECASE)
-
-    if result is not None:
-        print("1")
-        print(result)
-        date.year = result.group(3)
+    result = REGULAR_DATE.match(string)
+    if result:
         date.month = result.group(1)
         date.day = result.group(2)
+        date.year = result.group(3)
         return date
 
-
-    # Pattern matching month (space) year
-    pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})"
-    result = re.search(pattern, string, re.IGNORECASE)
-
-    if result is not None:
-        print("2")
-        print(result)
-        date.year = result.group(2)
+    result = MONTH_YEAR.match(string)
+    if result:
         date.month = result.group(1)
         date.day = "1"
+        date.year = result.group(2)
         return date
 
-    return result
+    result = YEAR.match(string)
+    if result:
+        date.month = "1"
+        date.day = "1"
+        date.year = result.group(0)
+        return date
+
+    result = REGULAR_CONDENSED.match(string)
+    if result:
+        date.month = result.group(1)
+        date.day = result.group(2)
+        date.year = result.group(3)
+        return date
+
+    return date
 
 
+def parse_date(string):
+    pass
 
 def parse_time(string):
     pass
@@ -147,7 +164,33 @@ class Date:
         self.month = month
         self.year = year
 
-parse_date("january 1, 2015ff")
+    def __str__(self):
+
+        if not self.year:
+            return ""
+
+        string = str(self.year) + ":"
+
+
+        if self.month:
+            if len(self.month < 2):
+                string += "0"
+            string += self.month
+        else:
+            string += "01"
+
+        string += ":"
+
+        if self.day:
+            if len(self.day < 2):
+                string += "0"
+            string += self.day
+        else:
+            string += "01"
+
+        return string
+
+print(match_date("january 2, 5555"))
 """
 im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
 exif_dict = piexif.load(im.info["exif"])
