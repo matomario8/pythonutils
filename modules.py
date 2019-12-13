@@ -7,6 +7,20 @@ from pprint import pprint
 from PIL import Image
 from pathlib import Path
 
+MONTHS = {
+    "january": "01",
+    "february": "02",
+    "march": "03",
+    "april": "04",
+    "may": "05",
+    "june": "06",
+    "july": "07",
+    "august": "08",
+    "september": "09",
+    "october": "10",
+    "november": "11",
+    "december": "12"
+}
 
 def decode_bytes(bytelist):
     """Decodes a list of UCS2 encoded bytes into a string"""
@@ -30,21 +44,39 @@ def encode_string(string):
     return result
 
 
+
 def parse_date(string):
-    """Parses date in a string, not sure what this should return yet"""
-    pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{1,2})\s*,?\s* (\d+)"
-    result = re.search(pattern, string, re.IGNORECASE)
+    """Parse date, create a date object, return a normalized version"""
 
     date = Date()
 
-    if result is not None:
+    pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{1,2})\s*,?\s*(\d{4})"
+    result = re.search(pattern, string, re.IGNORECASE)
 
+    if result is not None:
+        print("1")
+        print(result)
+        date.year = result.group(3)
         date.month = result.group(1)
         date.day = result.group(2)
-        date.year = result.group(3)
+        return date
+
+
+    # Pattern matching month (space) year
+    pattern = "(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})"
+    result = re.search(pattern, string, re.IGNORECASE)
+
+    if result is not None:
+        print("2")
+        print(result)
+        date.year = result.group(2)
+        date.month = result.group(1)
+        date.day = "1"
         return date
 
     return result
+
+
 
 def parse_time(string):
     pass
@@ -115,6 +147,7 @@ class Date:
         self.month = month
         self.year = year
 
+parse_date("january 1, 2015ff")
 """
 im = Image.open("C:/Users/Maro/Desktop/test/unnamed.jpg")
 exif_dict = piexif.load(im.info["exif"])
