@@ -1,6 +1,8 @@
 import os
 import re
 import piexif
+import csv
+from datetime import datetime as dt
 
 from tkinter import Tk, Label, Button, Checkbutton, IntVar, filedialog
 from tkinter.ttk import Progressbar
@@ -26,6 +28,12 @@ YEAR = re.compile("\\b1[89][5-9][0-9]|20[0-9][0-9]\\b",
 TIME = re.compile("\\b(\d{1,2})\\b:(\d{1,2})\s*(a\\.?m\\.?|p\\.?m\\.?)",
                   flags=re.IGNORECASE)
 
+def bytetostring(bytedata):
+    try:
+        bytedata = bytedata.decode('utf-8')
+    except(UnicodeDecodeError, AttributeError):
+        pass
+    return bytedata
 
 def decode_bytes(bytelist):
     """Decodes a list of UCS2 encoded bytes into a string"""
@@ -108,6 +116,7 @@ def parse_time(string):
 
     return time
 
+
 def rebuild_exif_structure(img_obj):
     img_obj.info["exif"] = {}
     img_obj.info["exif"]["0th"] = {}
@@ -138,6 +147,17 @@ class Gui:
                                            variable=self.ignoreincomplete)
         self.ignore_checkbox.pack()
 
+        self.titlesonly = IntVar()
+        self.titlesonly_checkbox = Checkbutton(self.root, text="Replace titles only",
+                                               variable=self.titlesonly)
+        self.titlesonly_checkbox.pack()
+
+        self.csvexport = IntVar()
+        self.csvexport_checkbox = Checkbutton(self.root, text="CSV Export",
+                                              variable=self.csvexport)
+
+        self.csvexport_checkbox.pack()
+
         self.progress_bar = Progressbar(self.root, orient="horizontal",
                                         mode="determinate")
         self.progress_bar.pack(pady=10)
@@ -155,6 +175,7 @@ class Gui:
         self.path_label["text"] = self.directory
         self.progress_bar["value"] = 0
 
+
     def update_images(self):
 
         if self.directory is None:
@@ -166,42 +187,94 @@ class Gui:
         self.progress_bar["value"] = 0
         self.root.update_idletasks()
 
+        current_datetime = str(dt.now().strftime("%H.%M.%S %m-%d-%Y"))
+
+        if self.csvexport.get():
+            csv_export = open(self.directory + "/" + current_datetime + "-export.csv", "wt", newline="")
+            writer = csv.writer(csv_export)
+            writer.writerow(["Filename", "Title", "Subject", "Author(s)", "Comments", "Date Taken", "Keywords", "GPS"])
+
         for file in files:
 
             self.progress_bar["value"] += (100 / self.progress_bar.length)
             self.root.update_idletasks()
 
             filepath = Path(self.directory) / file
-            im = Image.open(filepath)
-
-            if im.format != "JPEG" or "exif" not in im.info.keys():
+            if not filepath.suffix.lower().endswith(('.jpg', '.jpeg')):
                 continue
 
-            print(im.filename)
+            im = Image.open(filepath)
+
+            if "exif" not in im.info.keys():
+                continue
+
             exif_dict = piexif.load(im.info["exif"])
 
             title_field = file.split(".", 1)[0]
             exif_dict["0th"][piexif.ImageIFD.ImageDescription] = title_field
 
-            if str(piexif.ImageIFD.XPComment) not in exif_dict["0th"].keys():
-                comment_field = decode_bytes(exif_dict["0th"][piexif.ImageIFD.XPComment]).strip()
+            comment_field = exif_dict["0th"].get(40092, "")
+            if comment_field and not self.titlesonly.get():
+                comment_field = decode_bytes(exif_dict["0th"][40092])
 
-                if comment_field:
-                    print("running")
-                    date_string = str(parse_date(comment_field, ignoreincomplete=self.ignoreincomplete.get()))
+                date_string = str(parse_date(comment_field, ignoreincomplete=self.ignoreincomplete.get()))
 
-                    if not date_string:
-                        continue
+                if not date_string:
+                    continue
 
-                    time_string = str(parse_time(comment_field))
+                time_string = str(parse_time(comment_field))
 
-                    datetime = date_string + " " + time_string
-                    exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = datetime
-                    exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = datetime
+                datetime = date_string + " " + time_string
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = datetime
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = datetime
 
             exif_bytes = piexif.dump(exif_dict)
             piexif.insert(exif_bytes, im.filename)
 
+            if self.csvexport.get():
+                row_filename = file
+                row_title = decode_bytes(exif_dict['0th'].get(40091, ""))
+                row_subject = decode_bytes(exif_dict['0th'].get(40095, ""))
+                row_author = bytetostring(exif_dict['0th'].get(315, ""))
+                row_comment = decode_bytes(exif_dict['0th'].get(40092, ""))
+
+                row_datetaken = bytetostring(exif_dict['Exif'].get(36867, ""))
+                row_datetime_obj = dt.strptime(row_datetaken, '%Y:%m:%d %H:%M:%S')
+                row_datetaken = row_datetime_obj.strftime('%H:%M:%S, %m/%d/%Y')
+
+                row_keywords = decode_bytes(exif_dict['0th'].get(40094, ""))
+                row_gps = exif_dict.get('GPS', "")
+
+                if row_gps:
+                    gps_lat = row_gps.get(2)
+                    gps_long = row_gps.get(4)
+                    gps_alt = row_gps.get(6)
+
+                    if gps_lat and gps_long:
+                        gps_lat1 = gps_lat[0][0] / gps_lat[0][1]
+                        gps_lat2 = gps_lat[1][0] / gps_lat[1][1]
+                        gps_lat3 = gps_lat[2][0] / gps_lat[2][1]
+
+                        gps_long1 = gps_long[0][0] / gps_long[0][1]
+                        gps_long2 = gps_long[1][0] / gps_long[1][1]
+                        gps_long3 = gps_long[2][0] / gps_long[2][1]
+
+                        gps_lat = gps_lat1 + gps_lat2 / 60 + gps_lat3 / 3600
+                        gps_long = gps_long1 + gps_long2 / 60 + gps_long3 / 3600
+                        row_gps = str(gps_lat) + ", " + str(gps_long)
+
+                    if gps_alt:
+                        gps_alt = gps_alt[0] / gps_alt[1]
+                        row_gps = row_gps + ", " + str(gps_alt)
+
+                row_string = [row_filename, row_title, row_subject, row_author,
+                              row_comment, row_datetaken, row_keywords, row_gps]
+
+
+                writer.writerow(row_string)
+
+        if self.csvexport.get():
+            csv_export.close()
 
 class Time:
 
