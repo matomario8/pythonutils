@@ -116,11 +116,6 @@ def parse_time(string):
 
     return time
 
-
-def rebuild_exif_structure(img_obj):
-    img_obj.info["exif"] = {}
-    img_obj.info["exif"]["0th"] = {}
-
 class Gui:
 
     def __init__(self, root):
@@ -187,13 +182,6 @@ class Gui:
         self.progress_bar["value"] = 0
         self.root.update_idletasks()
 
-        current_datetime = str(dt.now().strftime("%H.%M.%S %m-%d-%Y"))
-
-        if self.csvexport.get():
-            csv_export = open(self.directory + "/" + current_datetime + "-export.csv", "wt", newline="")
-            writer = csv.writer(csv_export)
-            writer.writerow(["Filename", "Title", "Subject", "Author(s)", "Comments", "Date Taken", "Keywords", "GPS"])
-
         for file in files:
 
             self.progress_bar["value"] += (100 / self.progress_bar.length)
@@ -232,6 +220,8 @@ class Gui:
             piexif.insert(exif_bytes, im.filename)
 
             if self.csvexport.get():
+                if not csv_data:
+                    csv_data = []
                 row_filename = file
                 row_title = decode_bytes(exif_dict['0th'].get(40091, ""))
                 row_subject = decode_bytes(exif_dict['0th'].get(40095, ""))
@@ -268,13 +258,17 @@ class Gui:
                         row_gps = row_gps + ", " + str(gps_alt)
 
                 row_string = [row_filename, row_title, row_subject, row_author,
-                              row_comment, row_datetaken, row_keywords, row_gps]
-
-
-                writer.writerow(row_string)
+                            row_comment, row_datetaken, row_keywords, row_gps]
+                csv_data.append(row_string)
 
         if self.csvexport.get():
-            csv_export.close()
+            current_datetime = str(dt.now().strftime("%H.%M.%S %m-%d-%Y"))
+            with open(self.directory + "/" + current_datetime + "-export.csv", "wt", newline="") as csv_export:
+                writer = csv.writer(csv_export)
+                writer.writerow(["Filename", "Title", "Subject", "Author(s)", "Comments", "Date Taken", "Keywords", "GPS"])
+
+                for csv_row in csv_data:
+                    writer.writerow(csv_row)
 
 class Time:
 
