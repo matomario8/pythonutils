@@ -188,51 +188,67 @@ class Gui:
             self.root.update_idletasks()
 
             filepath = Path(self.directory) / file
+            title_field = file.split(".", 1)[0]
+            
+
+
+            #Not a jpg, not able to open file, or no exif data, then continue to next file
             if not filepath.suffix.lower().endswith(('.jpg', '.jpeg')):
                 continue
 
-            im = Image.open(filepath)
+            try:
+                im = Image.open(filepath)
+            except (OSError):
+                print("Could not open/read file: ", filepath)
+                continue
 
             if "exif" not in im.info.keys():
                 continue
-
+            
+            #Add all exif data for the image to a dictionary
             exif_dict = piexif.load(im.info["exif"])
+            
+            """
+            try:
+                exif_dict["0th"][piexif.ImageIFD.ImageDescription] = title_field
+            except KeyError:
+                exif_dict["0th"].add(piexif.ImageIFD.ImageDescription, title_field)
+            """
+            exif_dict["0th"].update({piexif.ImageIFD.ImageDescription: title_field})
+            if not self.titlesonly.get():
+                try:
+                    key = "Comments"
+                    comments_field = decode_bytes(exif_dict["0th"][piexif.ImageIFD.XPComment])
+                    date_string = str(parse_date(comments_field, 
+                                    ignoreincomplete=self.ignoreincomplete.get()))
+                    if date_string:
+                        time_string = str(parse_time(comments_field))
+                        datetime = date_string + " " + time_string
 
-            title_field = file.split(".", 1)[0]
-            exif_dict["0th"][piexif.ImageIFD.ImageDescription] = title_field
+                        key = "DateTimeOriginal"
+                        exif_dict["Exif"].update({piexif.ExifIFD.DateTimeOriginal: datetime})
 
-            comment_field = exif_dict["0th"].get(40092, "")
-            if comment_field and not self.titlesonly.get():
-                comment_field = decode_bytes(exif_dict["0th"][40092])
-
-                date_string = str(parse_date(comment_field, ignoreincomplete=self.ignoreincomplete.get()))
-
-                if not date_string:
-                    continue
-
-                time_string = str(parse_time(comment_field))
-
-                datetime = date_string + " " + time_string
-                exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = datetime
-                exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = datetime
-
+                        key = "DateTimeDigitized"
+                        exif_dict["Exif"].update({piexif.ExifIFD.DateTimeDigitized: datetime})
+                except KeyError:
+                    print("'{}' field not found for file: {} ".format(key, filepath))
+                
             exif_bytes = piexif.dump(exif_dict)
             piexif.insert(exif_bytes, im.filename)
 
             if self.csvexport.get():
-                if not csv_data:
-                    csv_data = []
-                row_filename = file
-                row_title = decode_bytes(exif_dict['0th'].get(40091, ""))
-                row_subject = decode_bytes(exif_dict['0th'].get(40095, ""))
-                row_author = bytetostring(exif_dict['0th'].get(315, ""))
-                row_comment = decode_bytes(exif_dict['0th'].get(40092, ""))
 
-                row_datetaken = bytetostring(exif_dict['Exif'].get(36867, ""))
+                row_filename = file
+                row_title = exif_dict['0th'].get(piexif.ImageIFD.ImageDescription, "")
+                row_subject = decode_bytes(exif_dict['0th'].get(piexif.ImageIFD.XPSubject, ""))
+                row_author = bytetostring(exif_dict['0th'].get(piexif.ImageIFD.Artist, ""))
+                row_comment = decode_bytes(exif_dict['0th'].get(piexif.ImageIFD.XPComment, ""))
+
+                row_datetaken = bytetostring(exif_dict['Exif'].get(piexif.ExifIFD.DateTimeOriginal, ""))
                 row_datetime_obj = dt.strptime(row_datetaken, '%Y:%m:%d %H:%M:%S')
                 row_datetaken = row_datetime_obj.strftime('%H:%M:%S, %m/%d/%Y')
 
-                row_keywords = decode_bytes(exif_dict['0th'].get(40094, ""))
+                row_keywords = decode_bytes(exif_dict['0th'].get(piexif.ImageIFD.XPKeywords, ""))
                 row_gps = exif_dict.get('GPS', "")
 
                 if row_gps:
@@ -259,7 +275,11 @@ class Gui:
 
                 row_string = [row_filename, row_title, row_subject, row_author,
                             row_comment, row_datetaken, row_keywords, row_gps]
-                csv_data.append(row_string)
+                try:
+                    csv_data.append(row_string)
+                except NameError:
+                    csv_data = []
+                    csv_data.append(row_string)
 
         if self.csvexport.get():
             current_datetime = str(dt.now().strftime("%H.%M.%S %m-%d-%Y"))
