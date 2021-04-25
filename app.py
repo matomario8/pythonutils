@@ -136,7 +136,7 @@ class MainWindow(Frame):
         self.folder_button.grid(column=0, columnspan=2, row=2, pady=10)
 
         self.selected_option = IntVar(value=1)
-        self.default_radiobtn = Radiobutton(self.tkinter_root, text="Default",
+        self.default_radiobtn = Radiobutton(self.tkinter_root, text="Update dates",
                                                variable=self.selected_option,
                                                value=1)
         # self.default_radiobtn.pack()
@@ -148,7 +148,7 @@ class MainWindow(Frame):
         # self.ignore_checkbox.pack()
         self.ignore_checkbox.grid(column=1, row=3, padx=5)
 
-        self.titlesonly_radiobtn = Radiobutton(self.tkinter_root, text="Replace titles",
+        self.titlesonly_radiobtn = Radiobutton(self.tkinter_root, text="Update titles",
                                                variable=self.selected_option,
                                                value=2)
         # self.titlesonly_radiobtn.pack()
@@ -172,7 +172,7 @@ class MainWindow(Frame):
         self.progress_bar.grid(column=0, columnspan=2, row=7, sticky="EW", padx=40, pady=10)
 
         self.run_button = Button(self.tkinter_root, text="Run Tool",
-                                 command=self.update_images)
+                                 command=self.run_tool)
         # self.run_button.pack()
         self.run_button.grid(column=0, row=8, sticky="EW", padx=5, pady=5)
 
@@ -186,7 +186,7 @@ class MainWindow(Frame):
         self.path_label["text"] = self.directory
         self.progress_bar["value"] = 0
 
-    def run_tool(self, func):
+    def run_tool(self):
         if self.directory is None:
             # Could add a warning that no directory is selected (don't use a dialog)
             return
@@ -197,22 +197,23 @@ class MainWindow(Frame):
         self.progress_bar["value"] = 0
         self.tkinter_root.update_idletasks()
 
-        if self.selected_option == 4:
+        option = self.selected_option.get()
+        if option == 4:
             print("Generating CSV")
             self.generate_csv(files)
-        elif self.selected_option == 3:
+        elif option == 3:
             print("Updating authors")
             self.update_authors(files)
-        elif self.selected_option == 2:
-            print("Replacing titles")
+        elif option == 2:
+            print("Updating titles")
             self.update_titles(files)
         else:
-            print("Default selected")
+            print("Updating dates")
             self.update_images(files)
 
     def generate_csv(self, files):
         # One of three commands to run the tool with (Create a CSV of all images and their EXIF data)
-
+        csv_data = []
         for file in files:
             self.progress_bar["value"] += (100 / self.progress_bar.length)
             self.tkinter_root.update_idletasks()
@@ -269,11 +270,8 @@ class MainWindow(Frame):
 
             row_string = [row_filename, row_title, row_subject, row_author,
                         row_comment, row_datetaken, row_keywords, row_gps]
-            try:
-                csv_data.append(row_string)
-            except NameError:
-                csv_data = []
-                csv_data.append(row_string)
+            csv_data.append(row_string)
+
 
 
         current_datetime = str(dt.now().strftime("%H.%M.%S %m-%d-%Y"))
@@ -289,7 +287,7 @@ class MainWindow(Frame):
         for file in files:
             self.progress_bar["value"] += (100 / self.progress_bar.length)
             self.tkinter_root.update_idletasks()
-
+            print("test")
             filepath = Path(self.directory) / file
             if not filepath.suffix.lower().endswith(('.jpg', '.jpeg')):
                 continue
@@ -333,11 +331,22 @@ class MainWindow(Frame):
             exif_dict = piexif.load(im.info["exif"])
 
             title_field = file.split(".", 1)[0]
-            author_value = exif_dict['0th'].get(piexif.ImageIFD.XPAuthor, "") + ";" + title_field
+
+            author_value = decode_bytes(exif_dict['0th'].get(piexif.ImageIFD.XPAuthor, ""))
+            author_value+= ";" + title_field
+            author_value = encode_string(author_value)
             exif_dict["0th"].update({piexif.ImageIFD.XPAuthor: author_value})
+
+            # Artist = Author
+            artist_value = bytetostring(exif_dict['0th'].get(piexif.ImageIFD.Artist, ""))
+            artist_value += ";" + title_field
+            exif_dict['0th'].update({piexif.ImageIFD.Artist: artist_value})
+
+            print(exif_dict)
 
             exif_bytes = piexif.dump(exif_dict)
             piexif.insert(exif_bytes, im.filename)
+
 
     def update_images(self, files):
 
@@ -364,13 +373,6 @@ class MainWindow(Frame):
             # Add all exif data for the image to a dictionary
             exif_dict = piexif.load(im.info["exif"])
             
-            """
-        
-            try:
-                exif_dict["0th"][piexif.ImageIFD.ImageDescription] = title_field
-            except KeyError:
-                exif_dict["0th"].add(piexif.ImageIFD.ImageDescription, title_field)
-            """
         
             try:
                 key = "Comments"
@@ -490,5 +492,6 @@ class Date:
 if __name__ == "__main__":
 
     tkinter_root = Tk()
+    tkinter_root.title("Exif Editor")
     main_window = MainWindow(tkinter_root)
     main_window.tkinter_root.mainloop()
