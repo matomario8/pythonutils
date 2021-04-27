@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['app.py'],
-             pathex=['D:\\Projects\\python\\exifedit\\exifeditor'],
+             pathex=['/Users/mario/Projects/python/exifeditor'],
              binaries=[],
              datas=[],
              hiddenimports=[],

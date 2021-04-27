@@ -235,13 +235,18 @@ class MainWindow(Frame):
 
             row_filename = file
             row_title = exif_dict['0th'].get(piexif.ImageIFD.ImageDescription, "")
+            row_title = row_title.decode()
             row_subject = decode_bytes(exif_dict['0th'].get(piexif.ImageIFD.XPSubject, ""))
             row_author = bytetostring(exif_dict['0th'].get(piexif.ImageIFD.Artist, ""))
             row_comment = decode_bytes(exif_dict['0th'].get(piexif.ImageIFD.XPComment, ""))
 
             row_datetaken = bytetostring(exif_dict['Exif'].get(piexif.ExifIFD.DateTimeOriginal, ""))
-            row_datetime_obj = dt.strptime(row_datetaken, '%Y:%m:%d %H:%M:%S')
-            row_datetaken = row_datetime_obj.strftime('%H:%M:%S, %m/%d/%Y')
+
+            try:
+                row_datetime_obj = dt.strptime(row_datetaken, '%Y:%m:%d %H:%M:%S')
+                row_datetaken = row_datetime_obj.strftime('%H:%M:%S, %m/%d/%Y')
+            except ValueError:
+                print("No date found - skipping formatting: ", file)
 
             row_keywords = decode_bytes(exif_dict['0th'].get(piexif.ImageIFD.XPKeywords, ""))
             row_gps = exif_dict.get('GPS', "")
@@ -287,7 +292,6 @@ class MainWindow(Frame):
         for file in files:
             self.progress_bar["value"] += (100 / self.progress_bar.length)
             self.tkinter_root.update_idletasks()
-            print("test")
             filepath = Path(self.directory) / file
             if not filepath.suffix.lower().endswith(('.jpg', '.jpeg')):
                 continue
@@ -303,7 +307,8 @@ class MainWindow(Frame):
             
             exif_dict = piexif.load(im.info["exif"])
 
-            title_field = file.split(".", 1)[0]
+            title_field = file.rpartition(".")[0]
+
             exif_dict["0th"].update({piexif.ImageIFD.ImageDescription: title_field})
 
             exif_bytes = piexif.dump(exif_dict)
